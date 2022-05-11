@@ -1,3 +1,5 @@
+//! Defines the SPDX document structure.
+
 #![allow(unused)]
 
 use std::fmt::{Display, Formatter};
@@ -5,6 +7,7 @@ use time::{format_description, PrimitiveDateTime};
 use url::Url;
 
 /// An SPDX SBOM document.
+#[derive(Debug)]
 pub struct SpdxDocument {
     /// The version of the SPDX standard.
     pub spdx_version: SpdxVersion,
@@ -160,10 +163,29 @@ impl Display for LicenseListVersion {
 }
 
 /// The creator of the SPDX file.
+#[derive(Debug)]
 pub enum Creator {
     Person { name: String, email: Option<String> },
     Organization { name: String, email: Option<String> },
     Tool { name: String },
+}
+
+impl Display for Creator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Creator::Person {
+                name,
+                email: Some(email),
+            } => write!(f, "Person: {} ({})", name, email),
+            Creator::Person { name, email: None } => write!(f, "Person: {}", name),
+            Creator::Organization {
+                name,
+                email: Some(email),
+            } => write!(f, "Organization: {} ({})", name, email),
+            Creator::Organization { name, email: None } => write!(f, "Organization: {}", name),
+            Creator::Tool { name } => write!(f, "{}", name),
+        }
+    }
 }
 
 /// The timestamp indicating when the SPDX file was created.
@@ -185,7 +207,21 @@ impl Display for Created {
 }
 
 /// Freeform comment about the creator of the SPDX file.
+#[derive(Debug)]
 pub struct CreatorComment(pub String);
 
+impl Display for CreatorComment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Freeform comment about the SPDX file.
+#[derive(Debug)]
 pub struct DocumentComment(pub String);
+
+impl Display for DocumentComment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
