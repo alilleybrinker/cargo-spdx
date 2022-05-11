@@ -12,3 +12,5 @@ keywords = ["cli", "supply-chain", "sbom", "spdx", "cargo"]
 [dependencies]
 anyhow = "1.0.57"
 cargo_metadata = "0.14.2"
+time = { version = "0.3.9", features = ["formatting", "macros"] }
+url = "2.2.2"
