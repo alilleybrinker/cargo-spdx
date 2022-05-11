@@ -1,3 +1,15 @@
+//! Generate an SPDX SBOM for a Rust crate.
+
+#![deny(missing_debug_implementations)]
+#![deny(missing_copy_implementations)]
+#![deny(missing_docs)]
+
+use anyhow::{anyhow, Result};
+use cargo_metadata::{Metadata, MetadataCommand, Package};
+
+mod flat_file;
+mod spdx;
+
 /**
  * Basically, this tool should work as follows:
  *
@@ -5,10 +17,6 @@
  * Use cargo metadata to get the dependency graph and crate info.
  * Put that info into SPDX format.
  */
-use anyhow::{anyhow, Result};
-use cargo_metadata::{Metadata, MetadataCommand, Package};
-
-mod spdx;
 
 fn main() {
     if let Err(e) = run() {
