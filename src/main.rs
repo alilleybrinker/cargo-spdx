@@ -8,6 +8,8 @@
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 
+mod spdx;
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("error: {}", e);
