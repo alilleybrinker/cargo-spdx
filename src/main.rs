@@ -31,7 +31,7 @@ fn run() -> Result<()> {
     let metadata = MetadataCommand::new().exec()?;
 
     // Get the root of the dependency tree.
-    let root = get_root(&metadata).ok_or_else(|| anyhow!("no root"))?;
+    let root = get_root(&metadata)?;
     println!("root: {}", root.name);
 
     let test_doc = DocumentBuilder::default()
@@ -47,9 +47,10 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn get_root(metadata: &Metadata) -> Option<&Package> {
+fn get_root(metadata: &Metadata) -> Result<&Package> {
     metadata
         .resolve
         .as_ref()
         .and_then(|r| r.root.as_ref().map(|r| &metadata[r]))
+        .ok_or_else(|| anyhow!("no root found"))
 }
