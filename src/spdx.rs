@@ -1,7 +1,8 @@
 //! Defines the SPDX document structure.
 
+use anyhow::Error;
 use derive_builder::Builder;
-use derive_more::Display;
+use derive_more::{Display, From};
 use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
@@ -10,6 +11,7 @@ use url::Url;
 #[derive(Debug, Clone, Builder)]
 pub struct Document {
     /// The version of the SPD standard.
+    #[builder(setter(into))]
     pub spdx_version: SpdxVersion,
 
     /// The license of the SPDX file itself.
@@ -23,9 +25,11 @@ pub struct Document {
     pub spdx_identifier: SpdxIdentifier,
 
     /// The name of the SPDX file itself.
+    #[builder(setter(into))]
     pub document_name: DocumentName,
 
     /// A document-specific namespace URI.
+    #[builder(try_setter, setter(into))]
     pub document_namespace: DocumentNamespace,
 
     /// An external name for referring to the SPDX file.
@@ -42,6 +46,7 @@ pub struct Document {
     pub creator: Vec<Creator>,
 
     /// The timestamp for when the SPDX file was created.
+    #[builder(setter(into))]
     pub created: Created,
 
     /// Freeform comments about the creator of the SPDX file.
@@ -56,7 +61,7 @@ pub struct Document {
 }
 
 /// The version of the SPDX standard being used.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 #[display(fmt = "SPDX-{}.{}", major, minor)]
 pub struct SpdxVersion {
     /// The major version.
@@ -78,8 +83,14 @@ pub struct DataLicense;
 pub struct SpdxIdentifier;
 
 /// The name of the SPDX file itself.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct DocumentName(pub String);
+
+impl<'s> From<&'s str> for DocumentName {
+    fn from(string: &'s str) -> Self {
+        DocumentName(String::from(string))
+    }
+}
 
 // TODO: Determine how to permit users to specify the document namespace.
 //
@@ -100,8 +111,16 @@ pub struct DocumentName(pub String);
 /// `url` crate here, which follows the WHATWG's URL Living Standard.
 /// The URL Living Standard resolves some ambiguities in RFC 3986,
 /// and is not strictly compatible with it.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct DocumentNamespace(pub Url);
+
+impl TryFrom<&str> for DocumentNamespace {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(DocumentNamespace(Url::parse(value)?))
+    }
+}
 
 /// An external name for referring to the SPDX file.
 #[derive(Debug, Display, Clone)]
@@ -116,11 +135,11 @@ pub struct ExternalDocumentReference {
 }
 
 /// An ID string made of letters, numbers, '.', '-', and/or '+'.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct IdString(pub String);
 
 /// A checksum for the external document reference.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct Checksum(pub String);
 
 /// The version of the SPDX license list used.
@@ -135,10 +154,27 @@ pub struct LicenseListVersion {
 #[derive(Debug, Clone)]
 pub enum Creator {
     #[allow(unused)]
-    Person { name: String, email: Option<String> },
+    Person {
+        name: String,
+        email: Option<String>,
+    },
     #[allow(unused)]
-    Organization { name: String, email: Option<String> },
-    Tool { name: String },
+    Organization {
+        name: String,
+        email: Option<String>,
+    },
+    Tool {
+        name: String,
+    },
+}
+
+impl Creator {
+    /// Construct a new tool creator.
+    pub fn tool(s: &str) -> Self {
+        Creator::Tool {
+            name: String::from(s),
+        }
+    }
 }
 
 impl Display for Creator {
@@ -160,7 +196,7 @@ impl Display for Creator {
 }
 
 /// The timestamp indicating when the SPDX file was created.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, From)]
 
 pub struct Created(pub OffsetDateTime);
 
@@ -179,9 +215,9 @@ impl Display for Created {
 }
 
 /// Freeform comment about the creator of the SPDX file.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct CreatorComment(pub String);
 
 /// Freeform comment about the SPDX file.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, From)]
 pub struct DocumentComment(pub String);

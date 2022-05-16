@@ -4,13 +4,10 @@
 #![deny(missing_copy_implementations)]
 #![deny(missing_docs)]
 
-use crate::spdx::{
-    Created, Creator, DocumentBuilder, DocumentName, DocumentNamespace, SpdxVersion,
-};
+use crate::spdx::{Creator, DocumentBuilder};
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use time::OffsetDateTime;
-use url::Url;
 
 mod flat_file;
 mod spdx;
@@ -38,13 +35,11 @@ fn run() -> Result<()> {
     println!("root: {}", root.name);
 
     let test_doc = DocumentBuilder::default()
-        .spdx_version(SpdxVersion { major: 2, minor: 2 })
-        .document_name(DocumentName(String::from("test.spdx")))
-        .document_namespace(DocumentNamespace(Url::parse("https://google.com")?))
-        .creator(vec![Creator::Tool {
-            name: String::from("cargo-spdx 0.1.0"),
-        }])
-        .created(Created(OffsetDateTime::now_utc()))
+        .spdx_version((2, 2))
+        .document_name("test.spdx")
+        .try_document_namespace("https://google.com")?
+        .creator(vec![Creator::tool("cargo-spdx 0.1.0")])
+        .created(OffsetDateTime::now_utc())
         .build()?;
 
     flat_file::write_to_disk(&test_doc, "test.spdx")?;
