@@ -1,8 +1,7 @@
 //! Defines the SPDX document structure.
 
-#![allow(unused)]
-
 use derive_builder::Builder;
+use derive_more::Display;
 use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
@@ -57,7 +56,8 @@ pub struct Document {
 }
 
 /// The version of the SPDX standard being used.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "SPDX-{}.{}", major, minor)]
 pub struct SpdxVersion {
     /// The major version.
     pub major: u32,
@@ -65,43 +65,21 @@ pub struct SpdxVersion {
     pub minor: u32,
 }
 
-impl Display for SpdxVersion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SPDX-{}.{}", self.major, self.minor)
-    }
-}
-
 // Only has one representation, so there's no need
 // to store anything.
 /// The license of the SBOM file itself.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Display, Clone, Default)]
+#[display(fmt = "CC0-1.0")]
 pub struct DataLicense;
 
-impl Display for DataLicense {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CC0-1.0")
-    }
-}
-
 /// The identifier for the artifact the SBOM is for.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Display, Clone, Default)]
+#[display(fmt = "SPDXRef-DOCUMENT")]
 pub struct SpdxIdentifier;
 
-impl Display for SpdxIdentifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SPDXRef-DOCUMENT")
-    }
-}
-
 /// The name of the SPDX file itself.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct DocumentName(pub String);
-
-impl Display for DocumentName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 // TODO: Determine how to permit users to specify the document namespace.
 //
@@ -122,17 +100,12 @@ impl Display for DocumentName {
 /// `url` crate here, which follows the WHATWG's URL Living Standard.
 /// The URL Living Standard resolves some ambiguities in RFC 3986,
 /// and is not strictly compatible with it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct DocumentNamespace(pub Url);
 
-impl Display for DocumentNamespace {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// An external name for referring to the SPDX file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "DocumentRef-{} {} {}", id_string, document_uri, checksum)]
 pub struct ExternalDocumentReference {
     /// An ID string made of letters, numbers, '.', '-', and/or '+'.
     id_string: IdString,
@@ -142,53 +115,28 @@ pub struct ExternalDocumentReference {
     checksum: Checksum,
 }
 
-impl Display for ExternalDocumentReference {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "DocumentRef-{} {} {}",
-            self.id_string, self.document_uri, self.checksum
-        )
-    }
-}
-
 /// An ID string made of letters, numbers, '.', '-', and/or '+'.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct IdString(pub String);
 
-impl Display for IdString {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// A checksum for the external document reference.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct Checksum(pub String);
 
-impl Display for Checksum {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// The version of the SPDX license list used.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "{}.{}", major, minor)]
 pub struct LicenseListVersion {
     major: u32,
     minor: u32,
 }
 
-impl Display for LicenseListVersion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.major, self.minor)
-    }
-}
-
 /// The creator of the SPDX file.
 #[derive(Debug, Clone)]
 pub enum Creator {
+    #[allow(unused)]
     Person { name: String, email: Option<String> },
+    #[allow(unused)]
     Organization { name: String, email: Option<String> },
     Tool { name: String },
 }
@@ -213,6 +161,7 @@ impl Display for Creator {
 
 /// The timestamp indicating when the SPDX file was created.
 #[derive(Debug, Clone)]
+
 pub struct Created(pub OffsetDateTime);
 
 impl Display for Created {
@@ -230,21 +179,9 @@ impl Display for Created {
 }
 
 /// Freeform comment about the creator of the SPDX file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct CreatorComment(pub String);
 
-impl Display for CreatorComment {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// Freeform comment about the SPDX file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 pub struct DocumentComment(pub String);
-
-impl Display for DocumentComment {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
