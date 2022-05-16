@@ -3,7 +3,6 @@
 use crate::document::Document;
 use std::fs::File;
 use std::io::{self, BufWriter, Write as _};
-use std::path::Path;
 
 /// Convenience macro to provide uniform field-writing syntax.
 ///
@@ -34,25 +33,21 @@ macro_rules! write_field {
     };
 }
 
-pub fn write_to_disk<P: AsRef<Path>>(doc: &Document, to: P) -> io::Result<()> {
-    // Inner function which avoids excess code duplication due to monomorphization.
-    fn _write_to_disk(doc: &Document, to: &Path) -> io::Result<()> {
-        let mut f = BufWriter::new(File::create(to)?);
+pub fn write_to_disk(doc: &Document) -> io::Result<()> {
+    let to = doc.document_name.as_str();
+    let mut f = BufWriter::new(File::create(to)?);
 
-        write_field!(f, "SPDXVersion: {}", doc.spdx_version);
-        write_field!(f, "DataLicense: {}", doc.data_license);
-        write_field!(f, "SPDXID: {}", doc.spdx_identifier);
-        write_field!(f, "DocumentName: {}", doc.document_name);
-        write_field!(f, "DocumentNamespace: {}", doc.document_namespace);
-        write_field!(@opt, f, "ExternalDocumentRef: {}", doc.external_document_reference);
-        write_field!(@opt, f, "LicenseListVersion: {}", doc.license_list_version);
-        write_field!(@all, f, "Creator: {}", doc.creator);
-        write_field!(f, "Created: {}", doc.created);
-        write_field!(@opt, f, "CreatorComment: {}", doc.creator_comment);
-        write_field!(@opt, f, "DocumentComment: {}", doc.document_comment);
+    write_field!(f, "SPDXVersion: {}", doc.spdx_version);
+    write_field!(f, "DataLicense: {}", doc.data_license);
+    write_field!(f, "SPDXID: {}", doc.spdx_identifier);
+    write_field!(f, "DocumentName: {}", doc.document_name);
+    write_field!(f, "DocumentNamespace: {}", doc.document_namespace);
+    write_field!(@opt, f, "ExternalDocumentRef: {}", doc.external_document_reference);
+    write_field!(@opt, f, "LicenseListVersion: {}", doc.license_list_version);
+    write_field!(@all, f, "Creator: {}", doc.creator);
+    write_field!(f, "Created: {}", doc.created);
+    write_field!(@opt, f, "CreatorComment: {}", doc.creator_comment);
+    write_field!(@opt, f, "DocumentComment: {}", doc.document_comment);
 
-        Ok(())
-    }
-
-    _write_to_disk(doc, to.as_ref())
+    Ok(())
 }

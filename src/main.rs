@@ -7,9 +7,9 @@
 use crate::document::{Creator, DocumentBuilder};
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
-use time::OffsetDateTime;
 
 mod document;
+mod git;
 mod key_value;
 
 /**
@@ -32,25 +32,45 @@ fn run() -> Result<()> {
 
     // Get the root of the dependency tree.
     let root = get_root(&metadata)?;
+
+    // Print the name of the root package.
     println!("root: {}", root.name);
 
+    // Construct an example document.
     let test_doc = DocumentBuilder::default()
-        .spdx_version((2, 2))
-        .document_name("test.spdx")
+        .document_name(get_filename(root).as_ref())
         .try_document_namespace("https://google.com")?
-        .creator(vec![Creator::tool("cargo-spdx 0.1.0")])
-        .created(OffsetDateTime::now_utc())
+        .creator(get_creator())
         .build()?;
 
-    key_value::write_to_disk(&test_doc, "test.spdx")?;
+    // Write that document to disk.
+    key_value::write_to_disk(&test_doc)?;
 
     Ok(())
 }
 
+/// Extract the root package info from the crate metadata.
 fn get_root(metadata: &Metadata) -> Result<&Package> {
     metadata
         .resolve
         .as_ref()
         .and_then(|r| r.root.as_ref().map(|r| &metadata[r]))
         .ok_or_else(|| anyhow!("no root found"))
+}
+
+/// Get the name of the SPDX file being generated.
+fn get_filename(pkg: &Package) -> String {
+    format!("{}.spdx", pkg.name)
+}
+
+/// Identify the creator(s) of the SBOM.
+fn get_creator() -> Vec<Creator> {
+    let mut creator = vec![];
+
+    if let Ok(user) = git::get_current_user() {
+        creator.push(Creator::person(user.name, user.email));
+    }
+
+    creator.push(Creator::tool("cargo-spdx 0.1.0"));
+    creator
 }

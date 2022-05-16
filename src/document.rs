@@ -12,6 +12,7 @@ use url::Url;
 pub struct Document {
     /// The version of the SPD standard.
     #[builder(setter(into))]
+    #[builder(default)]
     pub spdx_version: SpdxVersion,
 
     /// The license of the SPDX file itself.
@@ -47,6 +48,7 @@ pub struct Document {
 
     /// The timestamp for when the SPDX file was created.
     #[builder(setter(into))]
+    #[builder(default)]
     pub created: Created,
 
     /// Freeform comments about the creator of the SPDX file.
@@ -70,6 +72,12 @@ pub struct SpdxVersion {
     pub minor: u32,
 }
 
+impl Default for SpdxVersion {
+    fn default() -> Self {
+        SpdxVersion { major: 2, minor: 2 }
+    }
+}
+
 // Only has one representation, so there's no need
 // to store anything.
 /// The license of the SBOM file itself.
@@ -85,6 +93,13 @@ pub struct SpdxIdentifier;
 /// The name of the SPDX file itself.
 #[derive(Debug, Display, Clone, From)]
 pub struct DocumentName(pub String);
+
+impl DocumentName {
+    /// Get the name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl<'s> From<&'s str> for DocumentName {
     fn from(string: &'s str) -> Self {
@@ -169,7 +184,12 @@ pub enum Creator {
 }
 
 impl Creator {
-    /// Construct a new tool creator.
+    /// Construct a new `Creator::Person`.
+    pub fn person(name: String, email: Option<String>) -> Self {
+        Creator::Person { name, email }
+    }
+
+    /// Construct a new `Creator::Tool`.
     pub fn tool(s: &str) -> Self {
         Creator::Tool {
             name: String::from(s),
@@ -190,7 +210,7 @@ impl Display for Creator {
                 email: Some(email),
             } => write!(f, "Organization: {} ({})", name, email),
             Creator::Organization { name, email: None } => write!(f, "Organization: {}", name),
-            Creator::Tool { name } => write!(f, "{}", name),
+            Creator::Tool { name } => write!(f, "Tool: {}", name),
         }
     }
 }
@@ -199,6 +219,12 @@ impl Display for Creator {
 #[derive(Debug, Clone, From)]
 
 pub struct Created(pub OffsetDateTime);
+
+impl Default for Created {
+    fn default() -> Self {
+        Created(OffsetDateTime::now_utc())
+    }
+}
 
 impl Display for Created {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
