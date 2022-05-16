@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use time::OffsetDateTime;
 
-mod flat_file;
+mod key_value;
 mod spdx;
 
 /**
@@ -42,7 +42,7 @@ fn run() -> Result<()> {
         .created(OffsetDateTime::now_utc())
         .build()?;
 
-    flat_file::write_to_disk(&test_doc, "test.spdx")?;
+    key_value::write_to_disk(&test_doc, "test.spdx")?;
 
     Ok(())
 }
