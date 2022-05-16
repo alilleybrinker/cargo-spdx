@@ -4,13 +4,13 @@
 #![deny(missing_copy_implementations)]
 #![deny(missing_docs)]
 
-use crate::spdx::{Creator, DocumentBuilder};
+use crate::document::{Creator, DocumentBuilder};
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use time::OffsetDateTime;
 
+mod document;
 mod key_value;
-mod spdx;
 
 /**
  * Basically, this tool should work as follows:

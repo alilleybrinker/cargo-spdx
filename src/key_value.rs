@@ -1,6 +1,6 @@
 //! Writes the flat file format out.
 
-use crate::spdx::Document;
+use crate::document::Document;
 use std::fs::File;
 use std::io::{self, BufWriter, Write as _};
 use std::path::Path;
