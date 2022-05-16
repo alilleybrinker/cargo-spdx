@@ -4,47 +4,52 @@
 #![deny(missing_copy_implementations)]
 #![deny(missing_docs)]
 
+use crate::cli::Format;
 use crate::document::{Creator, DocumentBuilder};
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
+use clap::Parser as _;
 
+mod cli;
 mod document;
 mod git;
 mod key_value;
 
-/**
- * Basically, this tool should work as follows:
- *
- * Find the root of the crate.
- * Use cargo metadata to get the dependency graph and crate info.
- * Put that info into SPDX format.
- */
-
+/// Program entrypoint, only calls `run` and reports errors.
 fn main() {
     if let Err(e) = run() {
         eprintln!("error: {}", e);
     }
 }
 
+/// Gathers CLI args, constructs an SPDX `Document`, and outputs that document.
 fn run() -> Result<()> {
+    // Parse the command line args.
+    let args = cli::Cli::parse();
+
     // Get the metadata for the crate.
     let metadata = MetadataCommand::new().exec()?;
 
     // Get the root of the dependency tree.
     let root = get_root(&metadata)?;
 
-    // Print the name of the root package.
-    println!("root: {}", root.name);
-
-    // Construct an example document.
-    let test_doc = DocumentBuilder::default()
+    // Construct the document.
+    let doc = DocumentBuilder::default()
         .document_name(get_filename(root).as_ref())
-        .try_document_namespace("https://google.com")?
+        .try_document_namespace(args.host_url.as_ref())?
         .creator(get_creator())
         .build()?;
 
-    // Write that document to disk.
-    key_value::write_to_disk(&test_doc)?;
+    // Get the writer to the right output stream.
+    let mut writer = args.output_writer()?;
+
+    // Write the document out in the requested format.
+    match args.fmt {
+        None | Some(Format::KeyValue) => key_value::write(&mut writer, &doc)?,
+        Some(Format::Json) => todo!("JSON format not implemented"),
+        Some(Format::Yaml) => todo!("YAML format not implemented"),
+        Some(Format::Rdf) => todo!("RDF format not implemented"),
+    }
 
     Ok(())
 }

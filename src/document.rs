@@ -94,13 +94,6 @@ pub struct SpdxIdentifier;
 #[derive(Debug, Display, Clone, From)]
 pub struct DocumentName(pub String);
 
-impl DocumentName {
-    /// Get the name as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 impl<'s> From<&'s str> for DocumentName {
     fn from(string: &'s str) -> Self {
         DocumentName(String::from(string))

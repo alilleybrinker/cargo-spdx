@@ -1,8 +1,8 @@
 //! Writes the flat file format out.
 
 use crate::document::Document;
-use std::fs::File;
-use std::io::{self, BufWriter, Write as _};
+use anyhow::Result;
+use std::io::Write;
 
 /// Convenience macro to provide uniform field-writing syntax.
 ///
@@ -33,21 +33,18 @@ macro_rules! write_field {
     };
 }
 
-pub fn write_to_disk(doc: &Document) -> io::Result<()> {
-    let to = doc.document_name.as_str();
-    let mut f = BufWriter::new(File::create(to)?);
-
-    write_field!(f, "SPDXVersion: {}", doc.spdx_version);
-    write_field!(f, "DataLicense: {}", doc.data_license);
-    write_field!(f, "SPDXID: {}", doc.spdx_identifier);
-    write_field!(f, "DocumentName: {}", doc.document_name);
-    write_field!(f, "DocumentNamespace: {}", doc.document_namespace);
-    write_field!(@opt, f, "ExternalDocumentRef: {}", doc.external_document_reference);
-    write_field!(@opt, f, "LicenseListVersion: {}", doc.license_list_version);
-    write_field!(@all, f, "Creator: {}", doc.creator);
-    write_field!(f, "Created: {}", doc.created);
-    write_field!(@opt, f, "CreatorComment: {}", doc.creator_comment);
-    write_field!(@opt, f, "DocumentComment: {}", doc.document_comment);
+pub fn write<W: Write>(mut w: W, doc: &Document) -> Result<()> {
+    write_field!(w, "SPDXVersion: {}", doc.spdx_version);
+    write_field!(w, "DataLicense: {}", doc.data_license);
+    write_field!(w, "SPDXID: {}", doc.spdx_identifier);
+    write_field!(w, "DocumentName: {}", doc.document_name);
+    write_field!(w, "DocumentNamespace: {}", doc.document_namespace);
+    write_field!(@opt, w, "ExternalDocumentRef: {}", doc.external_document_reference);
+    write_field!(@opt, w, "LicenseListVersion: {}", doc.license_list_version);
+    write_field!(@all, w, "Creator: {}", doc.creator);
+    write_field!(w, "Created: {}", doc.created);
+    write_field!(@opt, w, "CreatorComment: {}", doc.creator_comment);
+    write_field!(@opt, w, "DocumentComment: {}", doc.document_comment);
 
     Ok(())
 }
