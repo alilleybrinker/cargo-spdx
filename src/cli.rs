@@ -29,11 +29,12 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Get a writer to the correct output stream.
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
         if let Some(file_name) = &self.output {
             Ok(Box::new(BufWriter::new(File::create(file_name)?)))
         } else {
-            Ok(Box::new(stdout()))
+            Ok(Box::new(BufWriter::new(stdout())))
         }
     }
 }
