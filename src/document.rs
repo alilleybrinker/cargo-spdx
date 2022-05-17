@@ -1,5 +1,6 @@
 //! Defines the SPDX document structure.
 
+use crate::git::get_current_user;
 use anyhow::Error;
 use derive_builder::Builder;
 use derive_more::{Display, From};
@@ -60,6 +61,18 @@ pub struct Document {
     #[builder(setter(strip_option))]
     #[builder(default)]
     pub document_comment: Option<DocumentComment>,
+}
+
+/// Identify the creator(s) of the SBOM.
+pub fn get_creator() -> Vec<Creator> {
+    let mut creator = vec![];
+
+    if let Ok(user) = get_current_user() {
+        creator.push(Creator::person(user.name, user.email));
+    }
+
+    creator.push(Creator::tool("cargo-spdx 0.1.0"));
+    creator
 }
 
 /// The version of the SPDX standard being used.

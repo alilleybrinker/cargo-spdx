@@ -4,12 +4,14 @@
 #![deny(missing_copy_implementations)]
 #![deny(missing_docs)]
 
-use crate::cli::Format;
-use crate::document::{Creator, DocumentBuilder};
-use anyhow::{anyhow, Result};
-use cargo_metadata::{Metadata, MetadataCommand, Package};
+use crate::cargo::get_root;
+use crate::cli::{Cli, Format};
+use crate::document::{get_creator, DocumentBuilder};
+use anyhow::Result;
+use cargo_metadata::MetadataCommand;
 use clap::Parser as _;
 
+mod cargo;
 mod cli;
 mod document;
 mod git;
@@ -25,7 +27,7 @@ fn main() {
 /// Gathers CLI args, constructs an SPDX `Document`, and outputs that document.
 fn run() -> Result<()> {
     // Parse the command line args.
-    let args = cli::Cli::parse();
+    let args = Cli::parse();
 
     // Get the metadata for the crate.
     let metadata = MetadataCommand::new().exec()?;
@@ -50,25 +52,4 @@ fn run() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Extract the root package info from the crate metadata.
-fn get_root(metadata: &Metadata) -> Result<&Package> {
-    metadata
-        .resolve
-        .as_ref()
-        .and_then(|r| r.root.as_ref().map(|r| &metadata[r]))
-        .ok_or_else(|| anyhow!("no root found"))
-}
-
-/// Identify the creator(s) of the SBOM.
-fn get_creator() -> Vec<Creator> {
-    let mut creator = vec![];
-
-    if let Ok(user) = git::get_current_user() {
-        creator.push(Creator::person(user.name, user.email));
-    }
-
-    creator.push(Creator::tool("cargo-spdx 0.1.0"));
-    creator
 }
