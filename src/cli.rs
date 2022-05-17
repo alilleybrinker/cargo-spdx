@@ -32,14 +32,17 @@ pub struct Cli {
 impl Cli {
     /// Get a writer to the correct output stream.
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
-        if let Some(file_path) = &self.output {
-            if file_path.exists() {
-                return Err(anyhow!("'{}' already exists", file_path.display()));
+        match &self.output {
+            // If the path exists, error out.
+            Some(file_path) if file_path.exists() => {
+                Err(anyhow!("'{}' already exists", file_path.display()))
             }
 
-            Ok(Box::new(BufWriter::new(File::create(file_path)?)))
-        } else {
-            Ok(Box::new(BufWriter::new(stdout())))
+            // If it doesn't, we're writing to a file.
+            Some(file_path) => Ok(Box::new(BufWriter::new(File::create(file_path)?))),
+
+            // If no path was specified, write to `stdout`.
+            None => Ok(Box::new(BufWriter::new(stdout()))),
         }
     }
 }
