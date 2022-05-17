@@ -4,6 +4,7 @@ use anyhow::{anyhow, Error, Result};
 use clap::Parser;
 use std::fs::File;
 use std::io::{stdout, BufWriter, Write};
+use std::path::Path;
 use std::str::FromStr;
 
 /// Contains the parsed CLI arguments.
@@ -32,7 +33,13 @@ impl Cli {
     /// Get a writer to the correct output stream.
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
         if let Some(file_name) = &self.output {
-            Ok(Box::new(BufWriter::new(File::create(file_name)?)))
+            let file_path = Path::new(file_name);
+
+            if file_path.exists() {
+                return Err(anyhow!("'{}' already exists", file_name));
+            }
+
+            Ok(Box::new(BufWriter::new(File::create(file_path)?)))
         } else {
             Ok(Box::new(BufWriter::new(stdout())))
         }
