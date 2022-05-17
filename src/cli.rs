@@ -4,7 +4,7 @@ use anyhow::{anyhow, Error, Result};
 use clap::Parser;
 use std::fs::File;
 use std::io::{stdout, BufWriter, Write};
-use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 /// Contains the parsed CLI arguments.
@@ -21,7 +21,7 @@ pub struct Cli {
 
     /// The name of a file to write out to.
     #[clap(short, long)]
-    pub output: Option<String>,
+    pub output: Option<PathBuf>,
 
     /// Ignored.
     ///
@@ -32,11 +32,9 @@ pub struct Cli {
 impl Cli {
     /// Get a writer to the correct output stream.
     pub fn output_writer(&self) -> Result<Box<dyn Write>> {
-        if let Some(file_name) = &self.output {
-            let file_path = Path::new(file_name);
-
+        if let Some(file_path) = &self.output {
             if file_path.exists() {
-                return Err(anyhow!("'{}' already exists", file_name));
+                return Err(anyhow!("'{}' already exists", file_path.display()));
             }
 
             Ok(Box::new(BufWriter::new(File::create(file_path)?)))
