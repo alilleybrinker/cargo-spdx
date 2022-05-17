@@ -46,9 +46,7 @@ fn run() -> Result<()> {
     // Write the document out in the requested format.
     match args.format() {
         Format::KeyValue => key_value::write(&mut writer, &doc)?,
-        Format::Json => todo!("JSON format not implemented"),
-        Format::Yaml => todo!("YAML format not implemented"),
-        Format::Rdf => todo!("RDF format not implemented"),
+        _ => unimplemented!("{} format not yet implemented", args.format()),
     }
 
     Ok(())

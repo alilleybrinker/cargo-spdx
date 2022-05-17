@@ -4,6 +4,7 @@ use anyhow::{anyhow, Error, Result};
 use cargo_metadata::Package;
 use clap::Parser;
 use std::ffi::{OsStr, OsString};
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::Not as _;
@@ -14,15 +15,16 @@ use std::str::FromStr;
 #[derive(Parser)]
 #[clap(version, about, long_about = None)]
 pub struct Cli {
-    /// The output format to use.
+    /// The output format to use, can be 'kv' (default), 'json', 'yaml', or 'rdf'.
     #[clap(short, long)]
+    #[clap(parse(try_from_str = parse_format))]
     format: Option<Format>,
 
-    /// The URL where the SBOM will be hosted.
+    /// The URL where the SBOM will be hosted. Must be unique for each SBOM.
     #[clap(short = 'H', long)]
     host_url: String,
 
-    /// The name of a file to write out to.
+    /// The name of a file to write out to (default: '<crate_name>.<format extension>')
     #[clap(short, long)]
     #[clap(parse(try_from_os_str = parse_output))]
     output: Option<PathBuf>,
@@ -35,6 +37,18 @@ pub struct Cli {
     ///
     /// This is the "spdx" part when called as a Cargo subcommand.
     _spdx: String,
+}
+
+/// Parse the format from the CLI input.
+fn parse_format(input: &str) -> Result<Format> {
+    let format = Format::from_str(input)?;
+
+    match format {
+        Format::KeyValue => Ok(format),
+        Format::Json => return Err(anyhow!("JSON format not implemented")),
+        Format::Yaml => return Err(anyhow!("YAML format not implemented")),
+        Format::Rdf => return Err(anyhow!("RDF format not implemented")),
+    }
 }
 
 /// Get a `PathBuf` to a file.
@@ -142,6 +156,17 @@ impl Format {
 impl Default for Format {
     fn default() -> Self {
         Format::KeyValue
+    }
+}
+
+impl Display for Format {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Format::KeyValue => write!(f, "Key-Value"),
+            Format::Json => write!(f, "JSON"),
+            Format::Yaml => write!(f, "YAML"),
+            Format::Rdf => write!(f, "RDF"),
+        }
     }
 }
 
