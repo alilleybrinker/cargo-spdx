@@ -35,20 +35,20 @@ fn run() -> Result<()> {
 
     // Construct the document.
     let doc = DocumentBuilder::default()
-        .document_name(get_filename(root).as_ref())
-        .try_document_namespace(args.host_url.as_ref())?
+        .document_name(args.output_file_name(root).to_string_lossy().as_ref())
+        .try_document_namespace(args.host_url())?
         .creator(get_creator())
         .build()?;
 
     // Get the writer to the right output stream.
-    let mut writer = args.output_writer()?;
+    let mut writer = args.open_output_writer(root)?;
 
     // Write the document out in the requested format.
-    match args.fmt {
-        None | Some(Format::KeyValue) => key_value::write(&mut writer, &doc)?,
-        Some(Format::Json) => todo!("JSON format not implemented"),
-        Some(Format::Yaml) => todo!("YAML format not implemented"),
-        Some(Format::Rdf) => todo!("RDF format not implemented"),
+    match args.format() {
+        Format::KeyValue => key_value::write(&mut writer, &doc)?,
+        Format::Json => todo!("JSON format not implemented"),
+        Format::Yaml => todo!("YAML format not implemented"),
+        Format::Rdf => todo!("RDF format not implemented"),
     }
 
     Ok(())
@@ -61,11 +61,6 @@ fn get_root(metadata: &Metadata) -> Result<&Package> {
         .as_ref()
         .and_then(|r| r.root.as_ref().map(|r| &metadata[r]))
         .ok_or_else(|| anyhow!("no root found"))
-}
-
-/// Get the name of the SPDX file being generated.
-fn get_filename(pkg: &Package) -> String {
-    format!("{}.spdx", pkg.name)
 }
 
 /// Identify the creator(s) of the SBOM.
