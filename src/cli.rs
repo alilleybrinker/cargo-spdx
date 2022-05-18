@@ -1,10 +1,10 @@
 //! Defines the CLI for `cargo-spdx`.
 
-use anyhow::{anyhow, Error, Result};
+use crate::format::Format;
+use anyhow::{anyhow, Result};
 use cargo_metadata::Package;
 use clap::Parser;
 use std::ffi::{OsStr, OsString};
-use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::Not as _;
@@ -122,64 +122,5 @@ impl Cli {
     /// Get the name of the file to be generated for the package.
     fn resolve_package_path(&self, pkg: &Package) -> PathBuf {
         PathBuf::from(format!("{}{}", pkg.name, self.format().extension()))
-    }
-}
-
-/// The output format for the SPDX document.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Format {
-    /// Key-value format.
-    KeyValue,
-
-    /// JSON format.
-    Json,
-
-    /// YAML format.
-    Yaml,
-
-    /// RDF format.
-    Rdf,
-}
-
-impl Format {
-    /// Get the file extension for the format.
-    fn extension(&self) -> &'static str {
-        match self {
-            Format::KeyValue => ".spdx",
-            Format::Json => ".spdx.json",
-            Format::Yaml => ".spdx.yaml",
-            Format::Rdf => ".spdx.rdf",
-        }
-    }
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Format::KeyValue
-    }
-}
-
-impl Display for Format {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Format::KeyValue => write!(f, "Key-Value"),
-            Format::Json => write!(f, "JSON"),
-            Format::Yaml => write!(f, "YAML"),
-            Format::Rdf => write!(f, "RDF"),
-        }
-    }
-}
-
-impl FromStr for Format {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "kv" => Ok(Format::KeyValue),
-            "json" => Ok(Format::Json),
-            "yaml" => Ok(Format::Yaml),
-            "rdf" => Ok(Format::Rdf),
-            s => Err(anyhow!("unknown format '{}'", s)),
-        }
     }
 }

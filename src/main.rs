@@ -5,8 +5,9 @@
 #![deny(missing_docs)]
 
 use crate::cargo::get_root;
-use crate::cli::{Cli, Format};
+use crate::cli::Cli;
 use crate::document::{get_creator, DocumentBuilder};
+use crate::format::Format;
 use anyhow::Result;
 use cargo_metadata::MetadataCommand;
 use clap::Parser as _;
@@ -14,8 +15,8 @@ use clap::Parser as _;
 mod cargo;
 mod cli;
 mod document;
+mod format;
 mod git;
-mod key_value;
 
 /// Program entrypoint, only calls `run` and reports errors.
 fn main() {
@@ -47,7 +48,7 @@ fn run() -> Result<()> {
 
     // Write the document out in the requested format.
     match args.format() {
-        Format::KeyValue => key_value::write(&mut writer, &doc)?,
+        Format::KeyValue => format::key_value::write(&mut writer, &doc)?,
         _ => unimplemented!("{} format not yet implemented", args.format()),
     }
 
