@@ -2,13 +2,9 @@
 
 use crate::format::Format;
 use anyhow::{anyhow, Result};
-use cargo_metadata::Package;
 use clap::Parser;
-use std::ffi::{OsStr, OsString};
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::ops::Not as _;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Contains the parsed CLI arguments.
@@ -79,48 +75,15 @@ impl Cli {
         &self.host_url
     }
 
-    /// Get the path the file will be written out to.
+    /// Get the possible output path of the program.
     #[inline]
-    pub fn resolve_output_path(&self, pkg: &Package) -> PathBuf {
-        // It's either the specified path, or a default path based on the name of the root package
-        // and the format selected by the user.
-        self.output
-            .clone()
-            .unwrap_or_else(|| self.resolve_package_path(pkg))
+    pub fn output(&self) -> Option<&Path> {
+        self.output.as_deref()
     }
 
-    /// Get the name of the output file, if there is one.
+    /// Whether we should forcefully overwrite prior output.
     #[inline]
-    pub fn output_file_name(&self, pkg: &Package) -> OsString {
-        // PANIC SAFETY: We check for the `file_name` when parsing arguments.
-        self.resolve_output_path(pkg)
-            .file_name()
-            .unwrap()
-            .to_owned()
-    }
-
-    /// Get a writer to the correct output stream.
-    pub fn open_output_writer(&self, pkg: &Package) -> Result<Box<dyn Write>> {
-        let file_path = self.resolve_output_path(pkg);
-
-        // A little truth table making clear this conditional is the right one.
-        //
-        // ---------
-        // | T | T | - forcing and exists - no error
-        // | T | F | - forcing and doesn't exist - no error
-        // | F | T | - not forcing and exists - error
-        // | F | F | - not forcing and doesn't exist - no error
-        // ---------
-
-        if self.force.not() && file_path.exists() {
-            return Err(anyhow!("output file already exists"));
-        }
-
-        Ok(Box::new(BufWriter::new(File::create(file_path)?)))
-    }
-
-    /// Get the name of the file to be generated for the package.
-    fn resolve_package_path(&self, pkg: &Package) -> PathBuf {
-        PathBuf::from(format!("{}{}", pkg.name, self.format().extension()))
+    pub fn force(&self) -> bool {
+        self.force
     }
 }

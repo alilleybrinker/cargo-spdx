@@ -4,12 +4,11 @@
 #![deny(missing_copy_implementations)]
 #![deny(missing_docs)]
 
-use crate::cargo::get_root;
+use crate::cargo::CrateMetadata;
 use crate::cli::Cli;
-use crate::document::{get_creator, DocumentBuilder};
+use crate::document::DocumentBuilder;
 use crate::format::Format;
 use anyhow::Result;
-use cargo_metadata::MetadataCommand;
 use clap::Parser as _;
 
 mod cargo;
@@ -17,6 +16,7 @@ mod cli;
 mod document;
 mod format;
 mod git;
+mod output;
 
 /// Program entrypoint, only calls `run` and reports errors.
 fn main() {
@@ -30,21 +30,19 @@ fn run() -> Result<()> {
     // Parse the command line args.
     let args = Cli::parse();
 
-    // Get the metadata for the crate.
-    let metadata = MetadataCommand::new().exec()?;
-
-    // Get the root of the dependency tree.
-    let root = get_root(&metadata)?;
+    // Get the metadata for the crate and the crate root.
+    let metadata = CrateMetadata::load()?;
+    let root = metadata.root()?;
 
     // Construct the document.
     let doc = DocumentBuilder::default()
-        .document_name(args.output_file_name(root).to_string_lossy().as_ref())
+        .document_name(output::file_name(&args, root).to_string_lossy().as_ref())
         .try_document_namespace(args.host_url())?
-        .creator(get_creator())
+        .creator(document::get_creator())
         .build()?;
 
     // Get the writer to the right output stream.
-    let mut writer = args.open_output_writer(root)?;
+    let mut writer = output::open_writer(&args, root)?;
 
     // Write the document out in the requested format.
     match args.format() {
