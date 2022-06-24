@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// Contains the parsed CLI arguments.
 #[derive(Parser)]
 #[clap(version, about, long_about = None)]
-pub struct Cli {
+pub struct Args {
     /// The output format to use, can be 'kv' (default), 'json', 'yaml', or 'rdf'.
     #[clap(short, long)]
     #[clap(parse(try_from_str = parse_format))]
@@ -62,7 +62,7 @@ fn parse_output(input: &OsStr) -> Result<PathBuf> {
     Ok(output)
 }
 
-impl Cli {
+impl Args {
     /// Get the format selected by the user.
     #[inline]
     pub fn format(&self) -> Format {
@@ -85,5 +85,11 @@ impl Cli {
     #[inline]
     pub fn force(&self) -> bool {
         self.force
+    }
+
+    /// Get the file extension for the configured format.
+    #[inline]
+    pub fn format_extension(&self) -> &'static str {
+        self.format().extension()
     }
 }

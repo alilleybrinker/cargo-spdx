@@ -5,9 +5,10 @@
 #![deny(missing_docs)]
 
 use crate::cargo::CrateMetadata;
-use crate::cli::Cli;
+use crate::cli::Args;
 use crate::document::DocumentBuilder;
 use crate::format::Format;
+use crate::output::OutputManager;
 use anyhow::Result;
 use clap::Parser as _;
 
@@ -27,28 +28,19 @@ fn main() {
 
 /// Gathers CLI args, constructs an SPDX `Document`, and outputs that document.
 fn run() -> Result<()> {
-    // Parse the command line args.
-    let args = Cli::parse();
-
-    // Get the metadata for the crate and the crate root.
+    // Load the CLI args and crate metadata, and then figure out where the SPDX file
+    // will be written, setting up a manager to ensure we only write when conditions are met.
+    let args = Args::parse();
     let metadata = CrateMetadata::load()?;
-    let root = metadata.root()?;
+    let output_manager = OutputManager::new(&args, metadata.root()?);
 
     // Construct the document.
     let doc = DocumentBuilder::default()
-        .document_name(output::file_name(&args, root).to_string_lossy().as_ref())
+        .document_name(output_manager.output_file_name())
         .try_document_namespace(args.host_url())?
         .creator(document::get_creator())
         .build()?;
 
-    // Get the writer to the right output stream.
-    let mut writer = output::open_writer(&args, root)?;
-
-    // Write the document out in the requested format.
-    match args.format() {
-        Format::KeyValue => format::key_value::write(&mut writer, &doc)?,
-        _ => unimplemented!("{} format not yet implemented", args.format()),
-    }
-
-    Ok(())
+    // Write the document to the output file.
+    output_manager.write_document(doc)
 }

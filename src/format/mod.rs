@@ -11,13 +11,10 @@ use std::str::FromStr;
 pub enum Format {
     /// Key-value format.
     KeyValue,
-
     /// JSON format.
     Json,
-
     /// YAML format.
     Yaml,
-
     /// RDF format.
     Rdf,
 }
