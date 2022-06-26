@@ -8,7 +8,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-/// Contains the parsed CLI arguments.
+#[allow(missing_docs)]
 #[derive(Parser)]
 #[clap(bin_name = "cargo")]
 pub enum Args {
