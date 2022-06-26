@@ -22,6 +22,8 @@ pub struct OutputManager {
 impl OutputManager {
     /// Get a new output manager based on CLI args and package info.
     pub fn new(args: &Args, pkg: &Package) -> Self {
+        log::info!(target: "cargo_spdx", "determining output path");
+
         // It's either the specified path, or a default path based on the name of the root package
         // and the format selected by the user.
         let to = args

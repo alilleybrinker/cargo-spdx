@@ -8,6 +8,7 @@ pub struct CrateMetadata(Metadata);
 impl CrateMetadata {
     /// Load crate metadata.
     pub fn load() -> Result<Self> {
+        log::info!(target: "cargo_spdx", "loading crate metadata");
         Ok(CrateMetadata(MetadataCommand::new().exec()?))
     }
 

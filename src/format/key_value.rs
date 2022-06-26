@@ -34,6 +34,8 @@ macro_rules! write_field {
 }
 
 pub fn write<W: Write>(mut w: W, doc: &Document) -> Result<()> {
+    log::info!(target: "cargo_spdx", "writing out file in key-value format");
+
     write_field!(w, "SPDXVersion: {}", doc.spdx_version);
     write_field!(w, "DataLicense: {}", doc.data_license);
     write_field!(w, "SPDXID: {}", doc.spdx_identifier);
