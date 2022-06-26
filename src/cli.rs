@@ -3,8 +3,11 @@
 use crate::format::Format;
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use dialoguer::Input;
+use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::ops::Deref;
+use std::ops::Not as _;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -47,7 +50,7 @@ pub struct SpdxArgs {
 
     /// The URL where the SBOM will be hosted. Must be unique for each SBOM.
     #[clap(short = 'H', long)]
-    host_url: String,
+    host_url: Option<String>,
 
     /// The path of the desired output file.
     #[clap(short, long)]
@@ -57,6 +60,10 @@ pub struct SpdxArgs {
     /// Force the output, replacing any existing file with the same name.
     #[clap(short = 'F', long)]
     force: bool,
+
+    /// Do not run interactively.
+    #[clap(short = 'n', long = "no-interact")]
+    no_interact: bool,
 }
 
 /// Parse the format from the CLI input.
@@ -85,8 +92,23 @@ impl Args {
 
     /// Get the URL the SBOM will be hosted.
     #[inline]
-    pub fn host_url(&self) -> &str {
-        &self.host_url
+    pub fn host_url(&self) -> Result<Cow<'_, str>> {
+        match &self.host_url {
+            Some(host_url) => Ok(Cow::Borrowed(host_url)),
+            None => {
+                if self.is_interactive().not() {
+                    return Err(anyhow!(
+                        "if running non-interactively, --host-url must be specified"
+                    ));
+                }
+
+                let host_url = Input::<String>::new()
+                    .with_prompt("Where will the SBOM be hosted (must be unique)?")
+                    .interact_text()?;
+
+                Ok(Cow::Owned(host_url))
+            }
+        }
     }
 
     /// Get the possible output path of the program.
@@ -105,5 +127,11 @@ impl Args {
     #[inline]
     pub fn format_extension(&self) -> &'static str {
         self.format().extension()
+    }
+
+    /// Check if the command is running interactively.
+    #[inline]
+    pub fn is_interactive(&self) -> bool {
+        self.no_interact.not()
     }
 }

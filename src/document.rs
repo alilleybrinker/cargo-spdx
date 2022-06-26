@@ -15,7 +15,7 @@ pub fn build(args: &Args, output_file_name: &str) -> Result<Document> {
     // Construct the document.
     Ok(DocumentBuilder::default()
         .document_name(output_file_name)
-        .try_document_namespace(args.host_url())?
+        .try_document_namespace(args.host_url()?.as_ref())?
         .creator(get_creator())
         .build()?)
 }

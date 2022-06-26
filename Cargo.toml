@@ -15,6 +15,7 @@ cargo_metadata = "0.14.2"
 clap = { version = "3.1.18", features = ["derive"] }
 derive_builder = "0.11.2"
 derive_more = "0.99.17"
+dialoguer = "0.10.1"
 env_logger = "0.9.0"
 git2 = { version = "0.14.4", features = ["vendored-openssl", "vendored-libgit2"] }
 log = "0.4.17"
