@@ -21,9 +21,9 @@ pub enum Args {
 
 impl Args {
     /// Read arguments from the CLI.
-    pub fn read() -> Self {
+    pub fn read() -> Result<Self> {
         log::info!(target: "cargo_spdx", "parsing cli arguments");
-        Args::parse()
+        Ok(Args::try_parse()?)
     }
 }
 

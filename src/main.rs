@@ -36,7 +36,7 @@ fn init() {
 fn run() -> Result<()> {
     // Load the CLI args and crate metadata, and then figure out where the SPDX file
     // will be written, setting up a manager to ensure we only write when conditions are met.
-    let args = Args::read();
+    let args = Args::read()?;
     let metadata = CrateMetadata::load()?;
     let output_manager = OutputManager::new(&args, metadata.root()?);
 

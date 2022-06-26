@@ -9,6 +9,7 @@ use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
 
+/// Build a new SPDX document based on collected information.
 pub fn build(args: &Args, output_file_name: &str) -> Result<Document> {
     log::info!(target: "cargo_spdx", "building the document");
 
@@ -18,6 +19,18 @@ pub fn build(args: &Args, output_file_name: &str) -> Result<Document> {
         .try_document_namespace(args.host_url()?.as_ref())?
         .creator(get_creator())
         .build()?)
+}
+
+/// Identify the creator(s) of the SBOM.
+pub fn get_creator() -> Vec<Creator> {
+    let mut creator = vec![];
+
+    if let Ok(user) = get_current_user() {
+        creator.push(Creator::person(user.name, user.email));
+    }
+
+    creator.push(Creator::tool("cargo-spdx 0.1.0"));
+    creator
 }
 
 /// An SPDX SBOM document.
@@ -73,18 +86,6 @@ pub struct Document {
     #[builder(setter(strip_option))]
     #[builder(default)]
     pub document_comment: Option<DocumentComment>,
-}
-
-/// Identify the creator(s) of the SBOM.
-pub fn get_creator() -> Vec<Creator> {
-    let mut creator = vec![];
-
-    if let Ok(user) = get_current_user() {
-        creator.push(Creator::person(user.name, user.email));
-    }
-
-    creator.push(Creator::tool("cargo-spdx 0.1.0"));
-    creator
 }
 
 /// The version of the SPDX standard being used.

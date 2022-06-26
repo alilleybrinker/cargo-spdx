@@ -3,7 +3,11 @@
 use anyhow::{anyhow, Result};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 
-pub struct CrateMetadata(Metadata);
+/// Metadata of the crate being documented.
+pub struct CrateMetadata(
+    /// The metadata.
+    Metadata,
+);
 
 impl CrateMetadata {
     /// Load crate metadata.

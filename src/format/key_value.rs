@@ -33,6 +33,7 @@ macro_rules! write_field {
     };
 }
 
+/// Write the document out to the provided writer.
 pub fn write<W: Write>(mut w: W, doc: &Document) -> Result<()> {
     log::info!(target: "cargo_spdx", "writing out file in key-value format");
 

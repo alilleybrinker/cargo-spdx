@@ -1,3 +1,5 @@
+//! Handle outputting the document to the user.
+
 use crate::document::Document;
 use crate::{format, Args, Format};
 use anyhow::{anyhow, Result};
