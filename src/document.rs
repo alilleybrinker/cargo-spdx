@@ -126,14 +126,6 @@ impl<'s> From<&'s str> for DocumentName {
     }
 }
 
-// TODO: Determine how to permit users to specify the document namespace.
-//
-// Options include:
-// - A command line flag
-// - An environment variable for the domain root
-// - A `Cargo.toml` configuration field under the `extra` section
-// - An interactive prompt if left unspecified.
-
 /// A document-specific namespace URI.
 ///
 /// Note that the SPDX 2.2 standard specifies an RFC 3986-compatible
