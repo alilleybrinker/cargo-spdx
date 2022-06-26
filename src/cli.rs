@@ -10,7 +10,6 @@ use std::str::FromStr;
 
 /// Contains the parsed CLI arguments.
 #[derive(Parser)]
-#[clap(version, about, long_about = None)]
 #[clap(bin_name = "cargo")]
 pub enum Args {
     /// Required because this runs as a cargo subcommand.
