@@ -4,14 +4,36 @@ use crate::format::Format;
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use std::ffi::OsStr;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Contains the parsed CLI arguments.
 #[derive(Parser)]
 #[clap(version, about, long_about = None)]
-pub struct Args {
-    /// The output format to use, can be 'kv' (default), 'json', 'yaml', or 'rdf'.
+#[clap(bin_name = "cargo")]
+pub enum Args {
+    /// Required because this runs as a cargo subcommand.
+    Spdx(SpdxArgs),
+}
+
+// Use a Deref impl to avoid the rest of the codebase having to care
+// about the nesting structure required here.
+impl Deref for Args {
+    type Target = SpdxArgs;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Args::Spdx(inner) => inner,
+        }
+    }
+}
+
+/// The inner argument type.
+#[derive(Parser)]
+#[clap(version, about, long_about = None)]
+pub struct SpdxArgs {
+    /// The output format to use: 'kv' (default), 'json', 'yaml', 'rdf'.
     #[clap(short, long)]
     #[clap(parse(try_from_str = parse_format))]
     format: Option<Format>,
@@ -20,7 +42,7 @@ pub struct Args {
     #[clap(short = 'H', long)]
     host_url: String,
 
-    /// The name of a file to write out to (default: '<crate_name>.<format extension>')
+    /// The path of the desired output file.
     #[clap(short, long)]
     #[clap(parse(try_from_os_str = parse_output))]
     output: Option<PathBuf>,
@@ -28,11 +50,6 @@ pub struct Args {
     /// Force the output, replacing any existing file with the same name.
     #[clap(short = 'F', long)]
     force: bool,
-
-    /// Ignored.
-    ///
-    /// This is the "spdx" part when called as a Cargo subcommand.
-    _spdx: String,
 }
 
 /// Parse the format from the CLI input.
