@@ -65,17 +65,7 @@ fn parse_format(input: &str) -> Result<Format> {
 
 /// Get a `PathBuf` to a file.
 fn parse_output(input: &OsStr) -> Result<PathBuf> {
-    let output = PathBuf::from(input);
-
-    if output.file_name().is_none() {
-        return Err(anyhow!("missing output file name"));
-    }
-
-    if output.is_dir() {
-        return Err(anyhow!("output can't be a directory"));
-    }
-
-    Ok(output)
+    Ok(PathBuf::from(input))
 }
 
 impl Args {

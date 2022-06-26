@@ -2,6 +2,7 @@ use crate::document::Document;
 use crate::{format, Args, Format};
 use anyhow::{anyhow, Result};
 use cargo_metadata::Package;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::Not as _;
@@ -37,14 +38,29 @@ impl OutputManager {
     /// Get the name of the output file.
     #[inline]
     pub fn output_file_name(&self) -> String {
-        // PANIC SAFETY: We check for the `file_name` when parsing arguments.
-        self.to.file_name().unwrap().to_string_lossy().to_string()
+        // If there's no file, we have an empty `OsStr`, which is fine because we won't
+        // write out anything anyway (this condition is checked during writing, and we error
+        // out if there's no file name in the output path).
+        self.to
+            .file_name()
+            .unwrap_or_else(|| OsStr::new(""))
+            .to_string_lossy()
+            .to_string()
     }
 
     /// Write the document to the output file in the specified format.
     #[inline]
     pub fn write_document(&self, doc: Document) -> Result<()> {
-        // Get the writer to the right output stream, if conditions are met.
+        // Check the output file has a file name and isn't a directory.
+        if self.to.file_name().is_none() {
+            return Err(anyhow!("missing output file name"));
+        }
+
+        if self.to.is_dir() {
+            return Err(anyhow!("output can't be a directory"));
+        }
+
+        // Get the writer to the output file.
         let mut writer = self.get_writer()?;
 
         // Write the document out in the requested format.
