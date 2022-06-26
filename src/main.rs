@@ -6,7 +6,6 @@
 
 use crate::cargo::CrateMetadata;
 use crate::cli::Args;
-use crate::document::DocumentBuilder;
 use crate::format::Format;
 use crate::output::OutputManager;
 use anyhow::Result;
@@ -41,12 +40,8 @@ fn run() -> Result<()> {
     let metadata = CrateMetadata::load()?;
     let output_manager = OutputManager::new(&args, metadata.root()?);
 
-    // Construct the document.
-    let doc = DocumentBuilder::default()
-        .document_name(output_manager.output_file_name())
-        .try_document_namespace(args.host_url())?
-        .creator(document::get_creator())
-        .build()?;
+    // Build the document.
+    let doc = document::build(&args, &output_manager.output_file_name())?;
 
     // Write the document to the output file.
     output_manager.write_document(doc)

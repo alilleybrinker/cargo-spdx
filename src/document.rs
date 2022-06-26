@@ -1,12 +1,24 @@
 //! Defines the SPDX document structure.
 
 use crate::git::get_current_user;
-use anyhow::Error;
+use crate::Args;
+use anyhow::{Error, Result};
 use derive_builder::Builder;
 use derive_more::{Display, From};
 use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
+
+pub fn build(args: &Args, output_file_name: &str) -> Result<Document> {
+    log::info!(target: "cargo_spdx", "building the document");
+
+    // Construct the document.
+    Ok(DocumentBuilder::default()
+        .document_name(output_file_name)
+        .try_document_namespace(args.host_url())?
+        .creator(get_creator())
+        .build()?)
+}
 
 /// An SPDX SBOM document.
 #[derive(Debug, Clone, Builder)]
