@@ -12,7 +12,7 @@ use std::str::FromStr;
 #[derive(Parser)]
 #[clap(bin_name = "cargo")]
 pub enum Args {
-    /// Required because this runs as a cargo subcommand.
+    /// Generate an SPDX SBOM for a crate.
     Spdx(SpdxArgs),
 }
 
