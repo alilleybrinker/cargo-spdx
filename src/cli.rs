@@ -71,9 +71,7 @@ fn parse_format(input: &str) -> Result<Format> {
     let format = Format::from_str(input)?;
 
     match format {
-        Format::KeyValue => Ok(format),
-        Format::Json => return Err(anyhow!("JSON format not implemented")),
-        Format::Yaml => return Err(anyhow!("YAML format not implemented")),
+        Format::KeyValue | Format::Json | Format::Yaml => Ok(format),
         Format::Rdf => return Err(anyhow!("RDF format not implemented")),
     }
 }
