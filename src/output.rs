@@ -70,6 +70,8 @@ impl OutputManager {
         // Write the document out in the requested format.
         match self.format {
             Format::KeyValue => Ok(format::key_value::write(&mut writer, &doc)?),
+            Format::Json => Ok(serde_json::to_writer(writer, &doc)?),
+            Format::Yaml => Ok(serde_yaml::to_writer(writer, &doc)?),
             _ => Err(anyhow!("{} format not yet implemented", self.format)),
         }
     }

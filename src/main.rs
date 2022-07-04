@@ -41,7 +41,10 @@ fn run() -> Result<()> {
     let output_manager = OutputManager::new(&args, metadata.root()?);
 
     // Build the document.
-    let doc = document::build(&args, &output_manager.output_file_name())?;
+    let doc = document::build(
+        args.host_url()?.as_ref(),
+        &output_manager.output_file_name(),
+    )?;
 
     // Write the document to the output file.
     output_manager.write_document(doc)

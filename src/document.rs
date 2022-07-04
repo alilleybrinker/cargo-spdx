@@ -1,28 +1,28 @@
 //! Defines the SPDX document structure.
 
 use crate::git::get_current_user;
-use crate::Args;
-use anyhow::{Error, Result};
+use anyhow::Result;
 use derive_builder::Builder;
 use derive_more::{Display, From};
+use serde::{Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
 
 /// Build a new SPDX document based on collected information.
-pub fn build(args: &Args, output_file_name: &str) -> Result<Document> {
+pub fn build(host_url: &str, output_file_name: &str) -> Result<Document> {
     log::info!(target: "cargo_spdx", "building the document");
 
     // Construct the document.
     Ok(DocumentBuilder::default()
         .document_name(output_file_name)
-        .try_document_namespace(args.host_url()?.as_ref())?
-        .creator(get_creator())
+        .try_document_namespace(host_url)?
+        .creation_info(get_creation_info()?)
         .build()?)
 }
 
 /// Identify the creator(s) of the SBOM.
-pub fn get_creator() -> Vec<Creator> {
+pub fn get_creation_info() -> Result<CreationInfo> {
     let mut creator = vec![];
 
     if let Ok(user) = get_current_user() {
@@ -30,62 +30,99 @@ pub fn get_creator() -> Vec<Creator> {
     }
 
     creator.push(Creator::tool("cargo-spdx 0.1.0"));
-    creator
+
+    Ok(CreationInfoBuilder::default().creators(creator).build()?)
 }
 
 /// An SPDX SBOM document.
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone, Builder, Serialize)]
 pub struct Document {
     /// The version of the SPD standard.
     #[builder(setter(into))]
     #[builder(default)]
+    #[serde(rename = "spdxVersion")]
     pub spdx_version: SpdxVersion,
 
     /// The license of the SPDX file itself.
     #[builder(default)]
     #[builder(setter(skip))]
+    #[serde(rename = "dataLicense")]
     pub data_license: DataLicense,
 
     /// The identifier for the object the SBOM is referencing.
     #[builder(default)]
     #[builder(setter(skip))]
+    #[serde(rename = "SPDXID")]
     pub spdx_identifier: SpdxIdentifier,
 
     /// The name of the SPDX file itself.
     #[builder(setter(into))]
+    #[serde(rename = "name")]
     pub document_name: DocumentName,
 
     /// A document-specific namespace URI.
+    /// Note that the SPDX 2.2 standard specifies an RFC 3986-compatible
+    /// URL for this field (with the requirement that the URL _not_ include
+    /// a fragment identifier.
+    ///
+    /// Since we're generating an SBOM, rather than consuming them, we can
+    /// afford to be more restrictive than the SPDX standard. We use the Rust
+    /// `url` crate here, which follows the WHATWG's URL Living Standard.
+    /// The URL Living Standard resolves some ambiguities in RFC 3986,
+    /// and is not strictly compatible with it.
     #[builder(try_setter, setter(into))]
-    pub document_namespace: DocumentNamespace,
+    #[serde(rename = "documentNamespace")]
+    pub document_namespace: Url,
 
     /// An external name for referring to the SPDX file.
     #[builder(setter(strip_option))]
     #[builder(default)]
+    #[serde(
+        rename = "externalDocumentRefs",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub external_document_reference: Option<ExternalDocumentReference>,
-
-    /// The version of the SPDX license list used.
-    #[builder(setter(strip_option))]
-    #[builder(default)]
-    pub license_list_version: Option<LicenseListVersion>,
-
-    /// The creator of the SPDX file.
-    pub creator: Vec<Creator>,
-
-    /// The timestamp for when the SPDX file was created.
-    #[builder(setter(into))]
-    #[builder(default)]
-    pub created: Created,
-
-    /// Freeform comments about the creator of the SPDX file.
-    #[builder(setter(strip_option))]
-    #[builder(default)]
-    pub creator_comment: Option<CreatorComment>,
 
     /// Freeform comments about the SPDX file.
     #[builder(setter(strip_option))]
     #[builder(default)]
-    pub document_comment: Option<DocumentComment>,
+    #[serde(rename = "comment", skip_serializing_if = "Option::is_none")]
+    pub document_comment: Option<String>,
+
+    /// One instance is required for each SPDX file produced. It provides the necessary
+    /// information for forward and backward compatibility for processing tools.
+    #[serde(rename = "creationInfo")]
+    pub creation_info: CreationInfo,
+}
+
+/// One instance is required for each SPDX file produced. It provides the necessary
+/// information for forward and backward compatibility for processing tools.
+#[derive(Debug, Clone, Builder, Serialize)]
+pub struct CreationInfo {
+    /// Freeform comments about the creator of the SPDX file.
+    #[builder(setter(strip_option), default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+    /// Identify when the SPDX file was originally created. The date is to be specified according
+    /// to combined date and time in UTC format as specified in ISO 8601 standard. This field is
+    /// distinct from the fields in section 8, which involves the addition of information during
+    /// a subsequent review.
+    #[builder(default)]
+    pub created: Created,
+    /// Identify who (or what, in the case of a tool) created the SPDX file. If the SPDX file was
+    /// created by an individual, indicate the person's name. If the SPDX file was created on
+    /// behalf of a company or organization, indicate the entity name. If the SPDX file was
+    /// created using a software tool, indicate the name and version for that tool. If multiple
+    /// participants or tools were involved, use multiple instances of this field. Person name or
+    /// organization name may be designated as “anonymous” if appropriate.
+    #[builder(setter(strip_option))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creators: Option<Vec<Creator>>,
+    /// An optional field for creators of the SPDX file to provide the version of the SPDX
+    /// License List used when the SPDX file was created.
+    #[serde(rename = "licenseListVersion", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(strip_option), default)]
+    pub license_list_version: Option<LicenseListVersion>,
 }
 
 /// The version of the SPDX standard being used.
@@ -117,7 +154,7 @@ pub struct DataLicense;
 pub struct SpdxIdentifier;
 
 /// The name of the SPDX file itself.
-#[derive(Debug, Display, Clone, From)]
+#[derive(Debug, Display, Clone, From, Serialize)]
 pub struct DocumentName(pub String);
 
 impl<'s> From<&'s str> for DocumentName {
@@ -125,47 +162,24 @@ impl<'s> From<&'s str> for DocumentName {
         DocumentName(String::from(string))
     }
 }
-
-/// A document-specific namespace URI.
-///
-/// Note that the SPDX 2.2 standard specifies an RFC 3986-compatible
-/// URL for this field (with the requirement that the URL _not_ include
-/// a fragment identifier.
-///
-/// Since we're generating an SBOM, rather than consuming them, we can
-/// afford to be more restrictive than the SPDX standard. We use the Rust
-/// `url` crate here, which follows the WHATWG's URL Living Standard.
-/// The URL Living Standard resolves some ambiguities in RFC 3986,
-/// and is not strictly compatible with it.
-#[derive(Debug, Display, Clone, From)]
-pub struct DocumentNamespace(pub Url);
-
-impl TryFrom<&str> for DocumentNamespace {
-    type Error = Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(DocumentNamespace(Url::parse(value)?))
-    }
-}
-
 /// An external name for referring to the SPDX file.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, Serialize)]
 #[display(fmt = "DocumentRef-{} {} {}", id_string, document_uri, checksum)]
 pub struct ExternalDocumentReference {
     /// An ID string made of letters, numbers, '.', '-', and/or '+'.
     id_string: IdString,
     /// The namespace of the document.
-    document_uri: DocumentNamespace,
+    document_uri: Url,
     /// A checksum for the external document reference.
     checksum: Checksum,
 }
 
 /// An ID string made of letters, numbers, '.', '-', and/or '+'.
-#[derive(Debug, Display, Clone, From)]
+#[derive(Debug, Display, Clone, From, Serialize)]
 pub struct IdString(pub String);
 
 /// A checksum for the external document reference.
-#[derive(Debug, Display, Clone, From)]
+#[derive(Debug, Display, Clone, From, Serialize)]
 pub struct Checksum(pub String);
 
 /// The version of the SPDX license list used.
@@ -237,6 +251,18 @@ impl Default for Created {
     }
 }
 
+// Make serde use the Display implementation for types with a custom
+// display implementation
+macro_rules! string_serialize {
+    ($($ty:ty),*) => {
+        $(impl Serialize for $ty { fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer { serializer.collect_str(&self) }})*
+    };
+}
+
+string_serialize! {
+  Created, Creator, LicenseListVersion, DataLicense, SpdxVersion, SpdxIdentifier
+}
+
 impl Display for Created {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let repr = {
@@ -250,11 +276,3 @@ impl Display for Created {
         write!(f, "{}", repr)
     }
 }
-
-/// Freeform comment about the creator of the SPDX file.
-#[derive(Debug, Display, Clone, From)]
-pub struct CreatorComment(pub String);
-
-/// Freeform comment about the SPDX file.
-#[derive(Debug, Display, Clone, From)]
-pub struct DocumentComment(pub String);

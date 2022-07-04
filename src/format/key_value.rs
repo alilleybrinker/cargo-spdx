@@ -31,6 +31,15 @@ macro_rules! write_field {
             write_field!($f, $fmt, item);
         }
     };
+
+    // Write out an optional iterable field.
+    ( @optall, $f:ident, $fmt:literal, $field:expr ) => {
+        if let Some(field) = &$field {
+            for item in field {
+                write_field!($f, $fmt, item);
+            }
+        }
+    };
 }
 
 /// Write the document out to the provided writer.
@@ -43,10 +52,10 @@ pub fn write<W: Write>(mut w: W, doc: &Document) -> Result<()> {
     write_field!(w, "DocumentName: {}", doc.document_name);
     write_field!(w, "DocumentNamespace: {}", doc.document_namespace);
     write_field!(@opt, w, "ExternalDocumentRef: {}", doc.external_document_reference);
-    write_field!(@opt, w, "LicenseListVersion: {}", doc.license_list_version);
-    write_field!(@all, w, "Creator: {}", doc.creator);
-    write_field!(w, "Created: {}", doc.created);
-    write_field!(@opt, w, "CreatorComment: {}", doc.creator_comment);
+    write_field!(@opt, w, "LicenseListVersion: {}", doc.creation_info.license_list_version);
+    write_field!(@optall, w, "Creator: {}", doc.creation_info.creators);
+    write_field!(w, "Created: {}", doc.creation_info.created);
+    write_field!(@opt, w, "CreatorComment: {}", doc.creation_info.comment);
     write_field!(@opt, w, "DocumentComment: {}", doc.document_comment);
 
     Ok(())
