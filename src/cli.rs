@@ -19,14 +19,6 @@ pub enum Args {
     Spdx(SpdxArgs),
 }
 
-impl Args {
-    /// Read arguments from the CLI.
-    pub fn read() -> Result<Self> {
-        log::info!(target: "cargo_spdx", "parsing cli arguments");
-        Ok(Args::try_parse()?)
-    }
-}
-
 // Use a Deref impl to avoid the rest of the codebase having to care
 // about the nesting structure required here.
 impl Deref for Args {
