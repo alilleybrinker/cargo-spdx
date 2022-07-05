@@ -11,7 +11,7 @@ keywords = ["cli", "supply-chain", "sbom", "spdx", "cargo"]
 
 [dependencies]
 anyhow = "1.0.57"
-cargo_metadata = "0.14.2"
+cargo_metadata = "0.15.0"
 clap = { version = "3.1.18", features = ["derive"] }
 derive_builder = "0.11.2"
 derive_more = "0.99.17"
