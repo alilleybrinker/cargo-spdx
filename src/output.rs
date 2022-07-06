@@ -1,14 +1,13 @@
 //! Handle outputting the document to the user.
 
 use crate::document::Document;
-use crate::{format, Args, Format};
+use crate::{format, Format};
 use anyhow::{anyhow, Result};
-use cargo_metadata::Package;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::Not as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Handles writing to the correct path.
 #[derive(Debug)]
@@ -23,19 +22,8 @@ pub struct OutputManager {
 
 impl OutputManager {
     /// Get a new output manager based on CLI args and package info.
-    pub fn new(args: &Args, pkg: &Package) -> Self {
-        log::info!(target: "cargo_spdx", "determining output path");
-
-        // It's either the specified path, or a default path based on the name of the root package
-        // and the format selected by the user.
-        let to = args
-            .output()
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| format!("{}{}", pkg.name, args.format_extension()).into());
-
-        let format = args.format();
-        let force = args.force();
-
+    pub fn new(path: &Path, force: bool, format: Format) -> Self {
+        let to = path.to_owned();
         OutputManager { to, format, force }
     }
 
@@ -54,7 +42,7 @@ impl OutputManager {
 
     /// Write the document to the output file in the specified format.
     #[inline]
-    pub fn write_document(&self, doc: Document) -> Result<()> {
+    pub fn write_document(&self, doc: &Document) -> Result<()> {
         // Check the output file has a file name and isn't a directory.
         if self.to.file_name().is_none() {
             return Err(anyhow!("missing output file name"));
@@ -69,10 +57,10 @@ impl OutputManager {
 
         // Write the document out in the requested format.
         match self.format {
-            Format::KeyValue => Ok(format::key_value::write(&mut writer, &doc)?),
-            Format::Json => Ok(serde_json::to_writer(writer, &doc)?),
-            Format::Yaml => Ok(serde_yaml::to_writer(writer, &doc)?),
-            _ => Err(anyhow!("{} format not yet implemented", self.format)),
+            Format::KeyValue => Ok(format::key_value::write(&mut writer, doc)?),
+            Format::Json => Ok(serde_json::to_writer_pretty(writer, doc)?),
+            Format::Yaml => Ok(serde_yaml::to_writer(writer, doc)?),
+            Format::Rdf => Err(anyhow!("{} format not yet implemented", self.format)),
         }
     }
 
@@ -90,7 +78,7 @@ impl OutputManager {
         // | F | F | - not forcing and doesn't exist - no error
         // ---------
         if self.force.not() && self.to.exists() {
-            return Err(anyhow!("output file already exists"));
+            return Err(anyhow!("output file already exists: {}", self.to.display()));
         }
 
         Ok(Box::new(BufWriter::new(File::create(&self.to)?)))

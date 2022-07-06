@@ -5,6 +5,14 @@ __`cargo-spdx` is currently in development and not yet ready for use.__
 `cargo-spdx` provides a cargo subcommand to generate an
 [SPDX][spdx] Software Bill of Materials (SBOM) for a Rust crate.
 
+## Usage
+
+`cargo spdx` creates an SBOM for the current crate.
+
+`cargo spdx build` wraps `cargo build`, producing SBOMs for each produced binary.
+
+See `cargo spdx --help` for more detail.
+
 ## Contributing
 
 Anyone is welcome to contribute. You can find the list of open issues

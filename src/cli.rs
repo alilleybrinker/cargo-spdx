@@ -3,9 +3,10 @@
 use crate::format::Format;
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use clap::Subcommand;
 use dialoguer::Input;
 use std::borrow::Cow;
-use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::ops::Deref;
 use std::ops::Not as _;
 use std::path::{Path, PathBuf};
@@ -46,7 +47,6 @@ pub struct SpdxArgs {
 
     /// The path of the desired output file.
     #[clap(short, long)]
-    #[clap(parse(try_from_os_str = parse_output))]
     output: Option<PathBuf>,
 
     /// Force the output, replacing any existing file with the same name.
@@ -56,6 +56,27 @@ pub struct SpdxArgs {
     /// Do not run interactively.
     #[clap(short = 'n', long = "no-interact")]
     no_interact: bool,
+
+    #[clap(subcommand)]
+    pub subcommand: Option<Command>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Command {
+    /// Run `cargo build`, generating SBOMs for produced binaries
+    #[clap(after_help = "
+The SBOMs are located alongside the binaries themselves, so if cargo produces
+target/debug/foo then the SBOM will be created at target/debug/foo.spdx[.json,.yaml]
+    
+Example:
+$ cargo spdx -H https://foo.com build -- --release --target x86_64-unknown-linux-musl
+
+Returns an error if `--message-format` is passed as an argument")]
+    Build {
+        /// Arguments to pass to `cargo build`
+        #[clap(multiple_values = true, takes_value = true, required = false)]
+        args: Vec<OsString>,
+    },
 }
 
 /// Parse the format from the CLI input.
@@ -66,11 +87,6 @@ fn parse_format(input: &str) -> Result<Format> {
         Format::KeyValue | Format::Json | Format::Yaml => Ok(format),
         Format::Rdf => return Err(anyhow!("RDF format not implemented")),
     }
-}
-
-/// Get a `PathBuf` to a file.
-fn parse_output(input: &OsStr) -> Result<PathBuf> {
-    Ok(PathBuf::from(input))
 }
 
 impl Args {
@@ -111,12 +127,6 @@ impl Args {
     #[inline]
     pub fn force(&self) -> bool {
         self.force
-    }
-
-    /// Get the file extension for the configured format.
-    #[inline]
-    pub fn format_extension(&self) -> &'static str {
-        self.format().extension()
     }
 
     /// Check if the command is running interactively.

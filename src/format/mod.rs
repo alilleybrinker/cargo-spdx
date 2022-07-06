@@ -21,7 +21,7 @@ pub enum Format {
 
 impl Format {
     /// Get the file extension for the format.
-    pub fn extension(&self) -> &'static str {
+    pub fn extension(self) -> &'static str {
         match self {
             Format::KeyValue => ".spdx",
             Format::Json => ".spdx.json",
