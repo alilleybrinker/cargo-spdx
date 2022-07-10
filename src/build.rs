@@ -1,14 +1,15 @@
 //! Implements `cargo spdx build` subcommand
 
-use crate::document::{self, File, Package, Relationship, RelationshipType};
+use crate::document::{self, File, FileType, Package, Relationship, RelationshipType};
 use crate::format::Format;
 use crate::output::OutputManager;
 use anyhow::Result;
-use cargo_metadata::camino::Utf8PathBuf;
+use cargo_metadata::camino::{Utf8Path, Utf8PathBuf};
 use cargo_metadata::{Artifact, Metadata, MetadataCommand, PackageId};
 use clap::Parser;
 use std::collections::HashMap;
 use std::ffi::OsString;
+use std::fs;
 use std::io::{BufRead, BufReader};
 use std::process::{ChildStdout, Command, Stdio};
 
@@ -34,6 +35,9 @@ struct CargoBuildInfo {
     packages: HashMap<PackageId, Package>,
     /// binaries identifed from cargo json messages
     binaries: Vec<(Utf8PathBuf, PackageId)>,
+
+    source_files: Vec<File>,
+    relationships: Vec<Relationship>,
 }
 
 /// Runs a `cargo build`, outputting an SBOM for each binary produced
@@ -98,14 +102,8 @@ pub fn build(build_args: &[OsString], host_url: &str, format: Format) -> Result<
         std::process::exit(ecode.code().unwrap_or(1));
     }
 
-    for (binary, package_id) in cargo_build_info.binaries {
-        produce_sbom(
-            binary,
-            &cargo_build_info.packages,
-            &package_id,
-            host_url,
-            format,
-        )?;
+    for (binary, package_id) in &cargo_build_info.binaries {
+        produce_sbom(binary, &cargo_build_info, package_id, host_url, format)?;
     }
     Ok(())
 }
@@ -142,52 +140,117 @@ fn process_json_messages(
                     .insert(artifact.package_id.clone(), package.into());
             }
 
+            // If this message has an rmeta file, then collect the corresponding source files
+            if let Some(rmeta) = artifact
+                .filenames
+                .iter()
+                .find(|f| f.extension() == Some("rmeta"))
+            {
+                let dep_info = rmeta_to_dep_info(rmeta);
+                collect_source_files(
+                    &dep_info,
+                    package
+                        .manifest_path
+                        // parent is directory containing Cargo.toml
+                        .parent()
+                        .unwrap(),
+                    &artifact.package_id,
+                    &mut collector,
+                    // Look for the dep_info entry itself as this lists source files
+                    dep_info.as_str(),
+                )?;
+            }
+
             // Identify executables
             // TODO also identify compiled libraries e.g dll/.so/.a
             if let Some(executable) = artifact.executable {
-                collector.binaries.push((executable, artifact.package_id));
+                collector
+                    .binaries
+                    .push((executable.clone(), artifact.package_id.clone()));
+
+                // Binaries have their own colocated dep-info file containing source files
+                let dep_info = Utf8PathBuf::from(format!("{}.d", executable));
+                collect_source_files(
+                    &dep_info,
+                    package
+                        .manifest_path
+                        // parent is directory containing Cargo.toml
+                        .parent()
+                        .unwrap(),
+                    &artifact.package_id,
+                    &mut collector,
+                    executable.as_str(),
+                )?;
             }
 
             Ok(())
         })?;
+    log::debug!("finished parsing cargo messages");
     Ok(collector)
 }
 
-// Create SBOM for each binary and output it alongside the binary
+/// Create an SBOM for the binary
+///
+/// # Arguments
+/// * `binary` - Path to the binary
+/// * `cargo_build_info` - CargoBuildInfo
+/// * `package_id` - Cargo Package ID of the package that generates the binary
+/// * `host_url` - SPDX host URL
+/// * `format` - SPDX format
 fn produce_sbom(
-    binary: cargo_metadata::camino::Utf8PathBuf,
-    packages: &HashMap<PackageId, Package>,
+    binary: &Utf8Path,
+    cargo_build_info: &CargoBuildInfo,
     package_id: &PackageId,
     host_url: &str,
     format: Format,
 ) -> Result<()> {
-    let mut relationships = Vec::new();
+    let mut relationships = cargo_build_info.relationships.clone();
+    let mut files = cargo_build_info.source_files.clone();
+    let packages = cargo_build_info.packages.clone();
 
-    // Create file information
-    let file = File::try_from_binary(&binary)?;
+    // Create file information for the binary
+    let file = File::try_from_file(
+        binary,
+        binary.parent().unwrap(),
+        FileType::Binary,
+        None,
+        None,
+    )?;
+    let binary_spdxid = file.spdxid.clone();
+    files.push(file);
 
     // Indicate the crate the binary was generated from
     relationships.push(Relationship {
         comment: None,
-        related_spdx_element: packages.get(package_id).unwrap().spdxid.clone(),
+        related_spdx_element: cargo_build_info
+            .packages
+            .get(package_id)
+            .unwrap()
+            .spdxid
+            .clone(),
         relationship_type: RelationshipType::GeneratedFrom,
-        spdx_element_id: file.spdxid.clone(),
+        spdx_element_id: binary_spdxid.clone(),
     });
 
     // Add all crates as dependencies of the binary
     // (May include unused dependencies e.g as part of a workspace build that produces
     // multiple binaries. Not obvious how to refine this outside of cargo
     // without the user doing a build per binary)
-    relationships.extend(packages.values().map(|package| Relationship {
-        comment: None,
-        related_spdx_element: package.spdxid.clone(),
-        // Is this the best fit? Should the file indicate that it statically links the crate?
-        relationship_type: RelationshipType::DependsOn,
-        spdx_element_id: file.spdxid.clone(),
-    }));
+    relationships.extend(
+        cargo_build_info
+            .packages
+            .values()
+            .map(|package| Relationship {
+                comment: None,
+                related_spdx_element: package.spdxid.clone(),
+                // Is this the best fit? Should the file indicate that it statically links the crate?
+                relationship_type: RelationshipType::DependsOn,
+                spdx_element_id: binary_spdxid.clone(),
+            }),
+    );
 
     // Create the SBOM and write it out
-    let mut spdx_path = binary;
+    let mut spdx_path = Utf8PathBuf::from(binary);
     spdx_path.set_extension(
         format!(
             "{}{}",
@@ -198,12 +261,83 @@ fn produce_sbom(
     );
     let output_manager = OutputManager::new(&spdx_path.into_std_path_buf(), true, format);
     let doc = document::builder(host_url, &output_manager.output_file_name())?
-        .files(vec![file])
+        .files(files)
         .packages(packages.values().cloned().collect())
         .relationships(relationships)
         .build()?;
     output_manager.write_document(&doc)?;
     Ok(())
+}
+
+// Return the dep-info (*.d) file for a given rmeta file
+fn rmeta_to_dep_info(rmeta_path: &Utf8Path) -> Utf8PathBuf {
+    // Remove the `lib` prefix to the filename and replace the extension with .d
+    let mut dep_info = Utf8PathBuf::from(rmeta_path);
+    dep_info.set_file_name(rmeta_path.file_name().unwrap().strip_prefix("lib").unwrap());
+    dep_info.set_extension("d");
+    dep_info
+}
+
+/// Collect source files from a dep-info file
+///
+/// Identify source files from a given entry in the dep-info file,
+/// add them to the collector, along with a relationship between the file
+/// and the owning package.
+///
+/// # Arguments
+/// * `dep_info` - Path to the dep-info file
+/// * `package_root` - Path to the root of the owning package. SPDX File names will be relative to this
+/// * `package_id` - Cargo Package ID of the owning package
+/// * `collector` - CargoBuildInfo that will have files/relationships added to it.
+/// * `dep_info_entry` - The dep_info_entry to extract source files for
+///
+/// Panics if package_id isn't in the collector's packages.
+fn collect_source_files(
+    dep_info: &Utf8Path,
+    package_root: &Utf8Path,
+    package_id: &PackageId,
+    collector: &mut CargoBuildInfo,
+    dep_info_entry: &str,
+) -> Result<Vec<File>> {
+    let package = collector.packages.get(package_id).unwrap();
+    let file = fs::File::open(&dep_info)?;
+    let mut files = if let Some(line) = BufReader::new(file)
+        .lines()
+        .filter_map(Result::ok)
+        .find(|line| line.starts_with(dep_info_entry))
+    {
+        line.split_whitespace()
+            // First entry is the dep info file
+            .skip(1)
+            .map(|file| {
+                let path = Utf8PathBuf::from(file);
+                File::try_from_file(
+                    &path,
+                    package_root,
+                    FileType::Source,
+                    Some(&package.name),
+                    package.version_info.as_deref(),
+                )
+            })
+            .filter_map(Result::ok)
+            .collect()
+    } else {
+        vec![]
+    };
+
+    let package_spdxid = &collector.packages.get(package_id).unwrap().spdxid;
+
+    for file in &files {
+        collector.relationships.push(Relationship {
+            comment: None,
+            related_spdx_element: file.spdxid.clone(),
+            relationship_type: RelationshipType::Contains,
+            spdx_element_id: package_spdxid.clone(),
+        });
+    }
+    collector.source_files.append(&mut files);
+
+    Ok(files)
 }
 
 #[cfg(test)]
