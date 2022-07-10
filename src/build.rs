@@ -1,6 +1,8 @@
 //! Implements `cargo spdx build` subcommand
 
-use crate::document::{self, File, FileType, Package, Relationship, RelationshipType};
+use crate::document::{
+    get_creation_info, DocumentBuilder, File, FileType, Package, Relationship, RelationshipType,
+};
 use crate::format::Format;
 use crate::output::OutputManager;
 use anyhow::Result;
@@ -49,7 +51,6 @@ pub fn build(build_args: &[OsString], host_url: &str, format: Format) -> Result<
     // This function runs `cargo build` with json messages enabled, in order to detect produced binaries
     // and identify crates used in build.
 
-    // cargo sets this for cargo subcommands, so use that when invoking cargo, if present
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let mut cargo_build_args: Vec<OsString> = vec!["build".to_string().into()];
     cargo_build_args.extend(build_args.iter().cloned());
@@ -260,7 +261,11 @@ fn produce_sbom(
         .trim_start_matches('.'),
     );
     let output_manager = OutputManager::new(&spdx_path.into_std_path_buf(), true, format);
-    let doc = document::builder(host_url, &output_manager.output_file_name())?
+
+    let doc = DocumentBuilder::default()
+        .document_name(output_manager.output_file_name())
+        .try_document_namespace(host_url)?
+        .creation_info(get_creation_info()?)
         .files(files)
         .packages(packages.values().cloned().collect())
         .relationships(relationships)
