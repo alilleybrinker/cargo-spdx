@@ -1,51 +1,12 @@
 //! Defines the SPDX document structure.
 
-use crate::git::get_current_user;
 use anyhow::Result;
-use cargo_metadata::camino::Utf8PathBuf;
 use derive_builder::Builder;
 use derive_more::{Display, From};
 use serde::{Deserialize, Serialize, Serializer};
-use sha1::{Digest, Sha1};
-use sha2::Sha256;
-use std::{
-    fmt::{Display, Formatter},
-    fs, io,
-};
+use std::fmt::{Display, Formatter};
 use time::{format_description, OffsetDateTime};
 use url::Url;
-
-pub const NOASSERTION: &str = "NOASSERTION";
-
-/// Build a new SPDX document based on collected information.
-pub fn build(host_url: &str, output_file_name: &str) -> Result<Document> {
-    Ok(builder(host_url, output_file_name)?.build()?)
-}
-
-/// Build a new SPDX document based on collected information.
-pub fn builder(host_url: &str, output_file_name: &str) -> Result<DocumentBuilder> {
-    log::info!(target: "cargo_spdx", "building the document");
-
-    let mut builder = DocumentBuilder::default();
-    builder
-        .document_name(output_file_name)
-        .try_document_namespace(host_url)?
-        .creation_info(get_creation_info()?);
-    Ok(builder)
-}
-
-/// Identify the creator(s) of the SBOM.
-pub fn get_creation_info() -> Result<CreationInfo> {
-    let mut creator = vec![];
-
-    if let Ok(user) = get_current_user() {
-        creator.push(Creator::person(user.name, user.email));
-    }
-
-    creator.push(Creator::tool("cargo-spdx 0.1.0"));
-
-    Ok(CreationInfoBuilder::default().creators(creator).build()?)
-}
 
 /// An SPDX SBOM document.
 #[derive(Debug, Clone, Builder, Serialize)]
@@ -305,47 +266,7 @@ impl Display for Created {
     }
 }
 
-impl From<&cargo_metadata::Package> for Package {
-    fn from(package: &cargo_metadata::Package) -> Self {
-        Package {
-            name: package.name.to_string(),
-            spdxid: format!("SPDXRef-{}-{}", package.name, package.version),
-            version_info: Some(package.version.to_string()),
-            package_file_name: None,
-            supplier: None,
-            originator: None,
-            download_location: NOASSERTION.to_string(),
-            files_analyzed: None,
-            package_verification_code: None,
-            checksums: None,
-            homepage: package.homepage.clone(),
-            source_info: None,
-            license_concluded: NOASSERTION.to_string(),
-            license_declared: NOASSERTION.to_string(),
-            copyright_text: NOASSERTION.to_string(),
-            description: None,
-            comment: None,
-            external_refs: if package.source.is_some() {
-                Some(vec![ExternalRef {
-                    reference_category: ReferenceCategory::PackageManager,
-                    reference_type: "purl".to_string(),
-                    reference_locator: format!("pkg:cargo/{}@{}", package.name, package.version),
-                    comment: None,
-                }])
-            } else {
-                None
-            },
-            annotations: None,
-            attribution_texts: None,
-            has_files: None,
-            license_comments: None,
-            license_info_from_files: None,
-            summary: None,
-        }
-    }
-}
-
-/// An Annotation is a comment on an SpdxItem by an agent.
+/// An Annotation is a comment on an `SpdxItem` by an agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileAnnotation {
     /// Identify when the comment was made. This is to be specified according to the combined
@@ -384,9 +305,9 @@ pub struct FileChecksum {
     pub checksum_value: String,
 }
 
-/// An ExtractedLicensingInfo represents a license or licensing notice that was found in the
+/// An `ExtractedLicensingInfo` represents a license or licensing notice that was found in the
 /// package. Any license text that is recognized as a license may be represented as a License
-/// rather than an ExtractedLicensingInfo.
+/// rather than an `ExtractedLicensingInfo`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HasExtractedLicensingInfo {
     #[serde(rename = "comment", skip_serializing_if = "Option::is_none")]
@@ -583,7 +504,7 @@ pub struct Package {
     pub version_info: Option<String>,
 }
 
-/// An Annotation is a comment on an SpdxItem by an agent.
+/// An Annotation is a comment on an `SpdxItem` by an agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageAnnotation {
     /// Identify when the comment was made. This is to be specified according to the combined
@@ -762,7 +683,7 @@ pub struct Snippet {
     pub spdxid: String,
 }
 
-/// An Annotation is a comment on an SpdxItem by an agent.
+/// An Annotation is a comment on an `SpdxItem` by an agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnippetAnnotation {
     /// Identify when the comment was made. This is to be specified according to the combined
@@ -1113,48 +1034,4 @@ pub struct File {
     /// elements.
     #[serde(rename = "SPDXID")]
     pub spdxid: String,
-}
-
-impl File {
-    pub fn try_from_binary(path: &Utf8PathBuf) -> Result<File> {
-        let file_name = path.file_name().unwrap();
-        let spdxid = format!("SPDXRef-File-{}", file_name);
-        Ok(File {
-            annotations: None,
-            attribution_texts: None,
-            checksums: Some(calculate_checksums(path)?),
-            comment: None,
-            copyright_text: NOASSERTION.to_string(),
-            file_contributors: None,
-            file_dependencies: None,
-            file_name: file_name.to_string(),
-            file_types: Some(vec![FileType::Binary]),
-            license_comments: None,
-            license_concluded: NOASSERTION.to_string(),
-            license_info_in_files: None,
-            notice_text: None,
-            spdxid,
-        })
-    }
-}
-
-/// Generate SHA1 and SHA256 checksums for a given file
-/// SPDX spec mandates SHA1
-fn calculate_checksums(path: &Utf8PathBuf) -> Result<Vec<FileChecksum>> {
-    let mut file = fs::File::open(path)?;
-    let mut sha256 = Sha256::new();
-    let sha1 = Sha1::new();
-    io::copy(&mut file, &mut sha256)?;
-    let sha256_hash = sha256.finalize();
-    let sha1_hash = sha1.finalize();
-    Ok(vec![
-        FileChecksum {
-            algorithm: Algorithm::Sha1,
-            checksum_value: hex::encode(&sha1_hash),
-        },
-        FileChecksum {
-            algorithm: Algorithm::Sha256,
-            checksum_value: hex::encode(&sha256_hash),
-        },
-    ])
 }

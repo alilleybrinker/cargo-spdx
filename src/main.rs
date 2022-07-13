@@ -53,10 +53,11 @@ fn main() -> Result<()> {
             OutputManager::new(&path, args.force(), args.format())
         };
 
-        let doc = document::build(
+        let doc = document::builder(
             args.host_url()?.as_ref(),
             &output_manager.output_file_name(),
-        )?;
+        )?
+        .build()?;
         output_manager.write_document(&doc)?;
     }
     Ok(())
