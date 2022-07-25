@@ -161,7 +161,6 @@ fn produce_sbom(
     host_url: &str,
     format: Format,
 ) -> Result<()> {
-    let files = Vec::new();
     let mut relationships = Vec::new();
 
     // Create file information
@@ -199,7 +198,7 @@ fn produce_sbom(
     );
     let output_manager = OutputManager::new(&spdx_path.into_std_path_buf(), true, format);
     let doc = document::builder(host_url, &output_manager.output_file_name())?
-        .files(files)
+        .files(vec![file])
         .packages(packages.values().cloned().collect())
         .relationships(relationships)
         .build()?;
