@@ -2,7 +2,7 @@
 
 use crate::git::get_current_user;
 use anyhow::{Context, Result};
-use cargo_metadata::camino::Utf8PathBuf;
+use cargo_metadata::camino::Utf8Path;
 pub use schema::*;
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
@@ -74,9 +74,38 @@ impl From<&cargo_metadata::Package> for Package {
 }
 
 impl File {
-    pub fn try_from_binary(path: &Utf8PathBuf) -> Result<File> {
-        let file_name = path.file_name().unwrap();
-        let spdxid = format!("SPDXRef-File-{}", file_name);
+    /// Create a SPDX File information entry from a file on disk
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file
+    /// * `root` - Root of the package. The file name in the SPDX entry will be relative to this
+    /// * `file_type` - SPDX File type
+    /// * `package_name` - Optional. If present will be included in the SPDXID for the File,
+    /// to enable unique SPDXIDs
+    /// * `package_version` - Optional. If present will be included in the SPDXID for the File,
+    /// to enable unique SPDXIDs
+    pub fn try_from_file(
+        path: &Utf8Path,
+        root: &Utf8Path,
+        file_type: FileType,
+        package_name: Option<&str>,
+        package_version: Option<&str>,
+    ) -> Result<File> {
+        let file_name = pathdiff::diff_utf8_paths(path, root).unwrap();
+        let spdxid = format!(
+            "SPDXRef-File-{}{}{}",
+            package_name.map(|n| format!("{}-", n)).unwrap_or_default(),
+            package_version
+                .map(|v| format!("{}-", v))
+                .unwrap_or_default(),
+            file_name
+        )
+        // SPDX IDs must only container alphanumeric chars, '.' or '-'
+        .replace(
+            |c: char| !(c.is_alphanumeric() || c == '-' || c == '.'),
+            "-",
+        );
         Ok(File {
             annotations: None,
             attribution_texts: None,
@@ -86,7 +115,7 @@ impl File {
             file_contributors: None,
             file_dependencies: None,
             file_name: file_name.to_string(),
-            file_types: Some(vec![FileType::Binary]),
+            file_types: Some(vec![file_type]),
             license_comments: None,
             license_concluded: NOASSERTION.to_string(),
             license_info_in_files: None,
@@ -98,14 +127,16 @@ impl File {
 
 /// Generate SHA1 and SHA256 checksums for a given file
 /// SPDX spec mandates SHA1
-fn calculate_checksums(path: &Utf8PathBuf) -> Result<Vec<FileChecksum>> {
-    let mut file = fs::File::open(path).context(format!("Failed to open {}", path))?;
+fn calculate_checksums(path: &Utf8Path) -> Result<Vec<FileChecksum>> {
+    log::debug!("calculating checksums for {}", path);
+    let mut file =
+        fs::File::open(path).context(format!("Failed to calculate checksum for {}", path))?;
     let mut sha256 = Sha256::new();
     let sha1 = Sha1::new();
     io::copy(&mut file, &mut sha256)?;
     let sha256_hash = sha256.finalize();
     let sha1_hash = sha1.finalize();
-    Ok(vec![
+    let output = vec![
         FileChecksum {
             algorithm: Algorithm::Sha1,
             checksum_value: hex::encode(&sha1_hash),
@@ -114,5 +145,7 @@ fn calculate_checksums(path: &Utf8PathBuf) -> Result<Vec<FileChecksum>> {
             algorithm: Algorithm::Sha256,
             checksum_value: hex::encode(&sha256_hash),
         },
-    ])
+    ];
+    log::debug!("finished calculating checksums for {}", path);
+    Ok(output)
 }

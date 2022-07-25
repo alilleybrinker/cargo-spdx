@@ -16,3 +16,8 @@ impl<'a> MetadataExt<'a> for Metadata {
             .ok_or_else(|| anyhow!("no root found"))
     }
 }
+
+pub fn cargo_exec() -> String {
+    // cargo sets this for cargo subcommands, so use that when invoking cargo, if present
+    std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string())
+}
