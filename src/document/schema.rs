@@ -1,5 +1,4 @@
 //! Defines the SPDX document structure.
-
 use anyhow::Result;
 use derive_builder::Builder;
 use derive_more::{Display, From};
